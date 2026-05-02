@@ -62,19 +62,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         setSession(data.session);
         setUser(data.session?.user ?? null);
-        setLoading(false);
 
         if (data.session?.user) {
           void fetchUserRole(data.session.user);
+        } else {
+          // Ensure minimum 500ms loading time for UI stability
+          setTimeout(() => {
+            if (active) setLoading(false);
+          }, 500);
+          return;
         }
+
+        // Small delay to ensure UI feels snappy but safe
+        setTimeout(() => {
+          if (active) setLoading(false);
+        }, 100);
       } catch (error) {
         console.error("Error checking session:", error);
         if (active) {
           clearAuthState();
-          setLoading(false);
+          // Ensure minimum 500ms loading time even on error
+          setTimeout(() => {
+            if (active) setLoading(false);
+          }, 500);
         }
-      } finally {
-        if (active) setLoading(false);
       }
     };
 
@@ -84,6 +95,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state changed:", event);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
