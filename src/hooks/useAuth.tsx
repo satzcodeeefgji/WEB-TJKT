@@ -17,6 +17,19 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const withTimeout = async <T,>(promise: Promise<T>, ms: number, message: string) => {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), ms);
+  });
+
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    clearTimeout(timeoutId!);
+  }
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -35,19 +48,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Check session on mount
   useEffect(() => {
+    let active = true;
+
     const checkSession = async () => {
       try {
-        const { data } = await supabase.auth.getSession();
+        const { data } = await withTimeout(
+          supabase.auth.getSession(),
+          4000,
+          "Session check timeout"
+        );
+
+        if (!active) return;
+
         setSession(data.session);
         setUser(data.session?.user ?? null);
+        setLoading(false);
 
         if (data.session?.user) {
-          await fetchUserRole(data.session.user);
+          void fetchUserRole(data.session.user);
         }
       } catch (error) {
         console.error("Error checking session:", error);
+        if (active) {
+          clearAuthState();
+          setLoading(false);
+        }
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
@@ -59,17 +86,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      setLoading(false);
 
       if (session?.user) {
-        await fetchUserRole(session.user);
+        void fetchUserRole(session.user);
       } else {
         clearAuthState();
       }
-
-      setLoading(false);
     });
 
-    return () => subscription?.unsubscribe();
+    return () => {
+      active = false;
+      subscription?.unsubscribe();
+    };
   }, []);
 
   const fetchUserRole = async (currentUser: User) => {
@@ -172,7 +201,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     clearAuthState();
 
     try {
-      const { error } = await supabase.auth.signOut({ scope: "local" });
+      const { error } = await withTimeout(
+        supabase.auth.signOut({ scope: "local" }),
+        2000,
+        "Sign out timeout"
+      );
 
       if (error) {
         console.error("Supabase sign out error:", error);
