@@ -1,11 +1,14 @@
 import { Link } from "react-router-dom";
 import { LogIn, LogOut, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
 
 export const AuthButton = () => {
   const { session, isAdmin, signOut } = useAuth();
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState(false);
 
   if (!session) {
     return (
@@ -27,9 +30,13 @@ export const AuthButton = () => {
       <Button
         variant="outline"
         size="sm"
+        disabled={busy}
         onClick={async () => {
+          if (busy) return;
+          setBusy(true);
           await signOut();
-          toast.success("Keluar");
+          navigate("/auth", { replace: true });
+          setBusy(false);
         }}
         className="gap-1.5"
       >

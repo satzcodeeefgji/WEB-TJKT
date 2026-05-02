@@ -25,6 +25,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const clearAuthState = () => {
+    setSession(null);
+    setUser(null);
+    setRole(null);
+    setRoleError(null);
+    setIsAdmin(false);
+  };
+
   // Check session on mount
   useEffect(() => {
     const checkSession = async () => {
@@ -55,8 +63,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (session?.user) {
         await fetchUserRole(session.user);
       } else {
-        setIsAdmin(false);
+        clearAuthState();
       }
+
+      setLoading(false);
     });
 
     return () => subscription?.unsubscribe();
@@ -73,12 +83,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (error) {
         if (error.code === "PGRST116") {
           const nisn = currentUser.email?.split("@")[0] ?? currentUser.id;
-          const { error: createError } = await supabase.from("profiles").insert({
+          const { error: createError } = await supabase.from("profiles").upsert({
             id: currentUser.id,
             nisn,
           });
 
           if (!createError) {
+            setRole("user");
+            setRoleError(null);
             setIsAdmin(false);
             return;
           }
@@ -157,23 +169,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signOut = async () => {
+    clearAuthState();
+
     try {
-      const { error } = await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut({ scope: "local" });
 
       if (error) {
-        toast.error(error.message);
-        throw error;
+        console.error("Supabase sign out error:", error);
       }
 
-      setSession(null);
-      setUser(null);
-      setRole(null);
-      setRoleError(null);
-      setIsAdmin(false);
       toast.success("Berhasil keluar");
     } catch (error) {
       console.error("Sign out error:", error);
-      throw error;
+      toast.success("Berhasil keluar");
     }
   };
 
