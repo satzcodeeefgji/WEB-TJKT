@@ -1,0 +1,23 @@
+# Supabase Configuration
+# Pastikan Anda telah setup Supabase project dan migration sudah berjalan
+# https://supabase.com
+
+# Project ID dapat ditemukan di Supabase Dashboard
+# project_id = "your_project_id"
+
+[api]
+enabled = true
+
+[db]
+major_version = 15
+
+[api.swagger]
+enabled = true
+
+[api.realtime]
+enabled = true
+
+[auth]
+# JWT secret dapat ditemukan di Supabase Dashboard > Settings > API
+# Pastikan secret key sudah di setup di environment variables
+
