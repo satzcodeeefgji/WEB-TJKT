@@ -18,12 +18,24 @@ import { supabase } from "@/integrations/supabase/client";
 import { withTimeout } from "@/lib/async";
 import { toast } from "sonner";
 
+const TASK_PHOTO_BUCKET = "documentation";
+
+const createStoragePath = (fileName: string) => {
+  const extension = fileName.split(".").pop() || "jpg";
+  const randomPart =
+    globalThis.crypto?.randomUUID?.() ??
+    `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  return `${randomPart}.${extension}`;
+};
+
 type Task = {
   id: string;
   title: string;
   description: string;
   deadline: string | null;
   created_at: string;
+  photo_paths: string[];
 };
 
 type Props = {
@@ -42,11 +54,44 @@ export const TugasTab = ({ role }: Props) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [deadline, setDeadline] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const fileRef = useRef<HTMLInputElement | null>(null);
 
   const reset = () => {
     setTitle("");
     setDescription("");
     setDeadline("");
+    setFiles([]);
+    setPreviews([]);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const uploadPhotos = async (files: File[]) => {
+    const photoPaths: string[] = [];
+
+    for (const file of files) {
+      const path = createStoragePath(file.name);
+      const { error: uploadError } = await supabase.storage
+        .from(TASK_PHOTO_BUCKET)
+        .upload(path, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        toast.error(`Gagal mengunggah gambar: ${uploadError.message}`);
+        console.error("Upload task photo error:", uploadError);
+        for (const uploadedPath of photoPaths) {
+          await supabase.storage.from(TASK_PHOTO_BUCKET).remove([uploadedPath]);
+        }
+        return null;
+      }
+
+      photoPaths.push(path);
+    }
+
+    return photoPaths;
   };
 
   const load = useCallback(async (showLoading = true) => {
@@ -111,15 +156,37 @@ export const TugasTab = ({ role }: Props) => {
   const addTask = async () => {
     if (!title.trim()) return toast.error("Judul tugas wajib diisi");
 
-    const { error } = await supabase.from("tasks").insert({
+    let photoPaths: string[] = [];
+    if (files.length > 0) {
+      const uploaded = await uploadPhotos(files);
+      if (!uploaded) return;
+      photoPaths = uploaded;
+    }
+
+    const payload: Record<string, unknown> = {
       title: title.trim(),
       description: description.trim(),
       deadline: deadline ? new Date(deadline).toISOString() : null,
-    });
+    };
+
+    if (photoPaths.length > 0) {
+      payload.photo_paths = photoPaths;
+    }
+
+    const { error } = await supabase.from("tasks").insert(payload as any);
 
     if (error) {
-      toast.error("Gagal menambahkan tugas");
+      const message =
+        error.code === "42703"
+          ? "Database belum punya kolom photo_paths. Jalankan migrasi supabase untuk mendukung foto tugas."
+          : error.message || "Gagal menambahkan tugas";
+      toast.error(message);
       console.error("Add task error:", error);
+      if (photoPaths.length > 0) {
+        for (const uploadedPath of photoPaths) {
+          await supabase.storage.from(TASK_PHOTO_BUCKET).remove([uploadedPath]);
+        }
+      }
       return;
     }
 
@@ -195,6 +262,45 @@ export const TugasTab = ({ role }: Props) => {
                     onChange={(e) => setDeadline(e.target.value)}
                   />
                 </div>
+
+                <div>
+                  <Label>Foto Tugas (maks 10)</Label>
+                  <Input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => {
+                      const selectedFiles = e.target.files;
+                      if (!selectedFiles) return;
+
+                      const fileArray = Array.from(selectedFiles).slice(0, 10);
+                      const invalid = fileArray.find((file) => file.size > 5 * 1024 * 1024);
+                      if (invalid) {
+                        toast.error("Ukuran gambar maksimal 5MB per file");
+                        setFiles([]);
+                        setPreviews([]);
+                        if (fileRef.current) fileRef.current.value = "";
+                        return;
+                      }
+
+                      setFiles(fileArray);
+                      setPreviews(fileArray.map((file) => URL.createObjectURL(file)));
+                    }}
+                  />
+                  {previews.length > 0 && (
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      {previews.map((preview, index) => (
+                        <img
+                          key={preview}
+                          src={preview}
+                          alt={`Preview ${index + 1}`}
+                          className="w-full aspect-square object-cover rounded-md border"
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <DialogFooter>
@@ -222,47 +328,58 @@ export const TugasTab = ({ role }: Props) => {
           {tasks.map((task, index) => (
             <article
               key={task.id}
-              className="bg-card border rounded-xl p-5 flex flex-col gap-3 hover-lift animate-fade-up"
+              className="bg-card border rounded-xl overflow-hidden hover-lift animate-fade-up"
               style={{ animationDelay: `${Math.min(index * 55, 280)}ms` }}
             >
-              <div className="flex justify-between">
-                <h3 className="font-semibold">{task.title}</h3>
+              {task.photo_paths?.[0] && (
+                <div className="bg-muted overflow-hidden">
+                  <img
+                    src={supabase.storage.from(TASK_PHOTO_BUCKET).getPublicUrl(task.photo_paths[0]).data.publicUrl}
+                    alt={task.title}
+                    className="w-full h-44 object-cover"
+                  />
+                </div>
+              )}
+              <div className="p-5 flex flex-col gap-3">
+                <div className="flex justify-between">
+                  <h3 className="font-semibold">{task.title}</h3>
 
-                {isAdmin && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => removeTask(task.id)}
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
-                )}
-              </div>
+                  {isAdmin && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => removeTask(task.id)}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  )}
+                </div>
 
-              <p className="text-sm text-muted-foreground">
-                {task.description}
-              </p>
+                <p className="text-sm text-muted-foreground">
+                  {task.description}
+                </p>
 
-              <div className="text-xs flex justify-between mt-auto">
-                <span>
-                  {format(new Date(task.created_at), "dd MMM", {
-                    locale: idLocale,
-                  })}
-                </span>
-
-                {task.deadline && (
-                  <span
-                    className={
-                      isOverdue(task.deadline)
-                        ? "text-red-500"
-                        : ""
-                    }
-                  >
-                    {format(new Date(task.deadline), "dd MMM HH:mm", {
+                <div className="text-xs flex justify-between mt-auto">
+                  <span>
+                    {format(new Date(task.created_at), "dd MMM", {
                       locale: idLocale,
                     })}
                   </span>
-                )}
+
+                  {task.deadline && (
+                    <span
+                      className={
+                        isOverdue(task.deadline)
+                          ? "text-red-500"
+                          : ""
+                      }
+                    >
+                      {format(new Date(task.deadline), "dd MMM HH:mm", {
+                        locale: idLocale,
+                      })}
+                    </span>
+                  )}
+                </div>
               </div>
             </article>
           ))}
