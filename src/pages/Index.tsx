@@ -45,25 +45,6 @@ const Index = () => {
           </p>
         </section>
 
-        {/* 🔥 DEBUG ROLE */}
-        <div className="mb-4 text-sm animate-fade-up animate-delay-2">
-          <strong>Role:</strong> {role ?? "null"}
-          <div className="mt-1 text-xs text-muted-foreground break-all">
-            Auth email: {user?.email ?? "-"}
-          </div>
-          <div className="mt-1 text-xs text-muted-foreground break-all">
-            Auth id: {user?.id ?? "-"}
-          </div>
-          <div className="mt-1 text-xs text-muted-foreground break-all">
-            Profile role: {authRole ?? "-"}
-          </div>
-          {roleError && (
-            <div className="mt-1 text-xs text-destructive break-all">
-              Role error: {roleError}
-            </div>
-          )}
-        </div>
-
         {/* 🔥 PANEL ADMIN */}
         {role === "admin" && (
           <div className="mb-6 p-4 border rounded-xl bg-green-100 animate-scale-in-soft">

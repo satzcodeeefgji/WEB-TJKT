@@ -105,7 +105,7 @@ const Auth = () => {
 
               <TabsContent value="signin" className="space-y-3 mt-5">
                 <Input
-                  placeholder="NISN"
+                  placeholder="NIS"
                   value={nisn}
                   onChange={(e) => setNisn(e.target.value)}
                   disabled={busy}
@@ -128,7 +128,7 @@ const Auth = () => {
 
               <TabsContent value="signup" className="space-y-3 mt-5">
                 <Input
-                  placeholder="NISN"
+                  placeholder="NIS"
                   value={nisn}
                   onChange={(e) => setNisn(e.target.value)}
                   disabled={busy}

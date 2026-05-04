@@ -177,7 +177,7 @@ export const KasTab = ({ role }: Props) => {
                     <Input id="sabsen" value={absen} onChange={(e) => setAbsen(e.target.value)} maxLength={5} inputMode="numeric" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="snisn">NISN</Label>
+                    <Label htmlFor="snisn">NIS</Label>
                     <Input id="snisn" value={nisn} onChange={(e) => setNisn(e.target.value)} maxLength={20} />
                   </div>
                 </div>
@@ -214,7 +214,7 @@ export const KasTab = ({ role }: Props) => {
                   <th className="px-4 py-3 font-medium w-12">#</th>
                   <th className="px-4 py-3 font-medium w-24">No Absen</th>
                   <th className="px-4 py-3 font-medium">Nama</th>
-                  <th className="px-4 py-3 font-medium">NISN</th>
+                  <th className="px-4 py-3 font-medium">NIS</th>
                   <th className="px-4 py-3 font-medium text-right">Total Bayar</th>
                   <th className="px-4 py-3 w-12"></th>
                 </tr>

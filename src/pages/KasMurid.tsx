@@ -191,7 +191,7 @@ const KasMurid = () => {
         ) : (
           <>
             <div className="space-y-1 animate-fade-up">
-              <p className="text-sm text-muted-foreground">No Absen {student.absen} · NISN {student.nisn || "—"}</p>
+              <p className="text-sm text-muted-foreground">No Absen {student.absen} · NIS {student.nisn || "—"}</p>
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{student.name}</h1>
             </div>
 
