@@ -21,6 +21,7 @@ const KasMurid = () => {
   const { isAdmin } = useAuth();
   const [student, setStudent] = useState<Student | null>(null);
   const [paid, setPaid] = useState<PaidMap>({});
+  const [supportsKind, setSupportsKind] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -58,11 +59,38 @@ const KasMurid = () => {
       }
 
       if (paymentsResult.error) {
+        const fallback = paymentsResult.error.message?.includes("kas_payments.kind does not exist");
+        if (fallback) {
+          const fallbackPayments = await supabase
+            .from("kas_payments")
+            .select("paid_date")
+            .eq("student_id", id);
+
+          if (fallbackPayments.error) {
+            toast.error(`Gagal memuat pembayaran: ${fallbackPayments.error.message}`);
+            console.error("Load fallback payments error:", fallbackPayments.error);
+            return;
+          }
+
+          setSupportsKind(false);
+          setStudent(studentResult.data);
+          setPaid(
+            (fallbackPayments.data ?? []).reduce<PaidMap>((acc, payment) => {
+              const key = payment.paid_date;
+              acc[key] = acc[key] ?? new Set();
+              acc[key].add("kas");
+              return acc;
+            }, {})
+          );
+          return;
+        }
+
         toast.error(`Gagal memuat pembayaran: ${paymentsResult.error.message}`);
         console.error("Load payments error:", paymentsResult.error);
         return;
       }
 
+      setSupportsKind(true);
       setStudent(studentResult.data);
       setPaid(
         (paymentsResult.data ?? []).reduce<PaidMap>((acc, payment) => {
@@ -92,18 +120,28 @@ const KasMurid = () => {
     if (!isAdmin || !student) return toast.error("Hanya admin yang bisa menandai pembayaran");
 
     const paymentExists = isPaid(dateKey, kind);
-    const { error } = paymentExists
-      ? await supabase
-          .from("kas_payments")
-          .delete()
-          .eq("student_id", student.id)
-          .eq("paid_date", dateKey)
-          .eq("kind", kind)
-      : await supabase.from("kas_payments").insert({
-          student_id: student.id,
-          paid_date: dateKey,
-          kind,
-        });
+    let error = null;
+
+    if (supportsKind === false && kind === "tabungan") {
+      return toast.error("Database belum mendukung tabungan. Jalankan migrasi Supabase.");
+    }
+
+    if (paymentExists) {
+      const query = supabase.from("kas_payments").delete().eq("student_id", student.id).eq("paid_date", dateKey);
+      if (supportsKind !== false) query.eq("kind", kind);
+      const result = await query;
+      error = result.error;
+    } else {
+      const payload: Record<string, unknown> = {
+        student_id: student.id,
+        paid_date: dateKey,
+      };
+      if (supportsKind !== false) {
+        payload.kind = kind;
+      }
+      const result = await supabase.from("kas_payments").insert(payload as any);
+      error = result.error;
+    }
 
     if (error) {
       toast.error("Gagal memperbarui pembayaran");
