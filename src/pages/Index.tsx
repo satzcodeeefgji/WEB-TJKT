@@ -40,9 +40,6 @@ const Index = () => {
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight leading-[1.05]">
             Semua tentang kelas <span className="text-primary">X-TJKT 2</span>, di satu tempat.
           </h1>
-          <p className="mt-5 text-base md:text-lg text-muted-foreground leading-relaxed">
-            Dokumentasi kenangan, daftar tugas, dan kas kelas — rapi, simpel, dan bisa diakses dari device mana saja.
-          </p>
         </section>
 
         {/* 🔥 PANEL ADMIN */}
@@ -84,7 +81,6 @@ const Index = () => {
       <footer className="mt-20 border-t py-8 px-6">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-muted-foreground">
           <span>© {new Date().getFullYear()} X-TJKT 2</span>
-          <span>Dibuat untuk kelas, oleh kelas.</span>
         </div>
       </footer>
     </div>
