@@ -12,13 +12,15 @@ import { withTimeout } from "@/lib/async";
 import { toast } from "sonner";
 
 type Student = { id: string; name: string; absen: string; nisn: string; saldo_awal: number };
+type PaymentKind = "kas" | "tabungan";
+type PaidMap = Record<string, Set<PaymentKind>>;
 const formatRp = (n: number) => "Rp" + n.toLocaleString("id-ID");
 
 const KasMurid = () => {
   const { id } = useParams<{ id: string }>();
   const { isAdmin } = useAuth();
   const [student, setStudent] = useState<Student | null>(null);
-  const [paid, setPaid] = useState<Set<string>>(new Set());
+  const [paid, setPaid] = useState<PaidMap>({});
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -44,7 +46,7 @@ const KasMurid = () => {
       const [studentResult, paymentsResult] = await withTimeout(
         Promise.all([
           supabase.from("students").select("*").eq("id", id).single(),
-          supabase.from("kas_payments").select("paid_date").eq("student_id", id),
+          supabase.from("kas_payments").select("paid_date,kind").eq("student_id", id),
         ]),
         "Memuat detail kas terlalu lama. Coba refresh halaman."
       );
@@ -62,7 +64,15 @@ const KasMurid = () => {
       }
 
       setStudent(studentResult.data);
-      setPaid(new Set((paymentsResult.data ?? []).map((payment) => payment.paid_date)));
+      setPaid(
+        (paymentsResult.data ?? []).reduce<PaidMap>((acc, payment) => {
+          const key = payment.paid_date;
+          const kind = (payment as any).kind || "kas";
+          acc[key] = acc[key] ?? new Set();
+          acc[key].add(kind as PaymentKind);
+          return acc;
+        }, {})
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : "Gagal memuat detail kas";
       toast.error(message);
@@ -76,19 +86,23 @@ const KasMurid = () => {
 
   if (notFound) return <Navigate to="/" replace />;
 
-  const togglePayment = async (dateKey: string) => {
+  const isPaid = (dateKey: string, kind: PaymentKind) => paid[dateKey]?.has(kind) ?? false;
+
+  const togglePayment = async (dateKey: string, kind: PaymentKind) => {
     if (!isAdmin || !student) return toast.error("Hanya admin yang bisa menandai pembayaran");
 
-    const isPaid = paid.has(dateKey);
-    const { error } = isPaid
+    const paymentExists = isPaid(dateKey, kind);
+    const { error } = paymentExists
       ? await supabase
           .from("kas_payments")
           .delete()
           .eq("student_id", student.id)
           .eq("paid_date", dateKey)
+          .eq("kind", kind)
       : await supabase.from("kas_payments").insert({
           student_id: student.id,
           paid_date: dateKey,
+          kind,
         });
 
     if (error) {
@@ -98,16 +112,29 @@ const KasMurid = () => {
     }
 
     setPaid((current) => {
-      const next = new Set(current);
-      if (isPaid) next.delete(dateKey);
-      else next.add(dateKey);
+      const next = { ...current };
+      const currentSet = new Set(current[dateKey] ?? []);
+
+      if (paymentExists) {
+        currentSet.delete(kind);
+      } else {
+        currentSet.add(kind);
+      }
+
+      if (currentSet.size > 0) {
+        next[dateKey] = currentSet;
+      } else {
+        delete next[dateKey];
+      }
+
       return next;
     });
 
     toast.success("Status pembayaran diperbarui");
   };
 
-  const totalPaid = paid.size * KAS_DAILY_AMOUNT + (student?.saldo_awal || 0);
+  const totalPaidItems = Object.values(paid).reduce((sum, set) => sum + set.size, 0);
+  const totalPaid = totalPaidItems * (KAS_DAILY_AMOUNT / 2) + (student?.saldo_awal || 0);
 
   return (
     <div className="min-h-dvh bg-background">
@@ -131,11 +158,12 @@ const KasMurid = () => {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-fade-up animate-delay-1">
-              <Stat label="Hari Lunas" value={`${paid.size} hari`} />
+              <Stat label="Setoran" value={`${totalPaidItems}x`} />
               <Stat label="Saldo Awal" value={formatRp(student.saldo_awal || 0)} />
               <Stat label="Tarif Harian" value={formatRp(KAS_DAILY_AMOUNT)} />
               <Stat label="Total Bayar" value={formatRp(totalPaid)} highlight />
             </div>
+            <p className="text-xs text-muted-foreground">Setiap hari: Rp1.000 kas + Rp1.000 tabungan.</p>
 
             {!isAdmin && (
               <p className="text-xs text-muted-foreground bg-muted/50 border rounded-lg px-3 py-2 animate-scale-in-soft">
@@ -145,8 +173,11 @@ const KasMurid = () => {
 
             <div className="space-y-8">
               {months.map((m) => {
-                const days = eachDayOfInterval({ start: startOfMonth(m), end: endOfMonth(m) });
-                const monthPaid = days.filter((d) => paid.has(format(d, "yyyy-MM-dd"))).length;
+                const days = eachDayOfInterval({ start: startOfMonth(m), end: endOfMonth(m) }).filter((d) => d.getDay() !== 0 && d.getDay() !== 6);
+                const monthPaid = days.reduce((sum, d) => {
+                  const key = format(d, "yyyy-MM-dd");
+                  return sum + (isPaid(key, "kas") ? 1 : 0) + (isPaid(key, "tabungan") ? 1 : 0);
+                }, 0);
                 return (
                   <section key={m.toISOString()} className="space-y-3 animate-fade-up">
                     <div className="flex items-baseline justify-between">
@@ -154,7 +185,7 @@ const KasMurid = () => {
                         {format(m, "MMMM yyyy", { locale: idLocale })}
                       </h2>
                       <span className="text-sm text-muted-foreground">
-                        {monthPaid}/{days.length} hari · {formatRp(monthPaid * KAS_DAILY_AMOUNT)}
+                        {monthPaid}/{days.length * 2} item · {formatRp(monthPaid * (KAS_DAILY_AMOUNT / 2))}
                       </span>
                     </div>
                     <div className="border rounded-xl overflow-hidden bg-card table-shell">
@@ -165,13 +196,15 @@ const KasMurid = () => {
                               <th className="px-4 py-2.5 font-medium w-20">Tanggal</th>
                               <th className="px-4 py-2.5 font-medium w-28">Hari</th>
                               <th className="px-4 py-2.5 font-medium">Nominal</th>
-                              <th className="px-4 py-2.5 font-medium text-center w-24">Lunas</th>
+                              <th className="px-4 py-2.5 font-medium text-center w-24">Kas</th>
+                              <th className="px-4 py-2.5 font-medium text-center w-28">Tabungan</th>
                             </tr>
                           </thead>
                           <tbody>
                             {days.map((d) => {
                               const key = format(d, "yyyy-MM-dd");
-                              const isPaid = paid.has(key);
+                              const kasPaid = isPaid(key, "kas");
+                              const tabunganPaid = isPaid(key, "tabungan");
                               return (
                                 <tr
                                   key={key}
@@ -184,16 +217,31 @@ const KasMurid = () => {
                                   <td className="px-4 py-2 text-center">
                                     <button
                                       type="button"
-                                      onClick={() => togglePayment(key)}
+                                      onClick={() => togglePayment(key, "kas")}
                                       disabled={!isAdmin}
-                                      aria-pressed={isPaid}
+                                      aria-pressed={kasPaid}
                                       className={`inline-flex items-center justify-center size-7 rounded-md border transition-all duration-200 hover:scale-105 active:scale-95 ${
-                                        isPaid
+                                        kasPaid
                                           ? "bg-success border-success text-success-foreground"
                                           : "bg-background border-input hover:border-foreground/40"
                                       } ${!isAdmin ? "cursor-not-allowed" : "cursor-pointer"}`}
                                     >
-                                      {isPaid && <Check className="size-4" strokeWidth={3} />}
+                                      {kasPaid && <Check className="size-4" strokeWidth={3} />}
+                                    </button>
+                                  </td>
+                                  <td className="px-4 py-2 text-center">
+                                    <button
+                                      type="button"
+                                      onClick={() => togglePayment(key, "tabungan")}
+                                      disabled={!isAdmin}
+                                      aria-pressed={tabunganPaid}
+                                      className={`inline-flex items-center justify-center size-7 rounded-md border transition-all duration-200 hover:scale-105 active:scale-95 ${
+                                        tabunganPaid
+                                          ? "bg-success border-success text-success-foreground"
+                                          : "bg-background border-input hover:border-foreground/40"
+                                      } ${!isAdmin ? "cursor-not-allowed" : "cursor-pointer"}`}
+                                    >
+                                      {tabunganPaid && <Check className="size-4" strokeWidth={3} />}
                                     </button>
                                   </td>
                                 </tr>

@@ -27,6 +27,7 @@ export type Database = {
           title: string;
           description: string;
           deadline: string | null;
+          photo_paths: string[];
           created_at: string;
         };
         Insert: {
@@ -34,6 +35,7 @@ export type Database = {
           title: string;
           description: string;
           deadline?: string | null;
+          photo_paths?: string[];
           created_at?: string;
         };
         Update: {
@@ -41,6 +43,7 @@ export type Database = {
           title?: string;
           description?: string;
           deadline?: string | null;
+          photo_paths?: string[];
           created_at?: string;
         };
       };
@@ -75,18 +78,21 @@ export type Database = {
           id: string;
           student_id: string;
           paid_date: string;
+          kind: "kas" | "tabungan";
           created_at: string;
         };
         Insert: {
           id?: string;
           student_id: string;
           paid_date: string;
+          kind?: "kas" | "tabungan";
           created_at?: string;
         };
         Update: {
           id?: string;
           student_id?: string;
           paid_date?: string;
+          kind?: "kas" | "tabungan";
           created_at?: string;
         };
       };

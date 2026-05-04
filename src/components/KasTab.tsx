@@ -141,7 +141,7 @@ export const KasTab = ({ role }: Props) => {
   };
 
   const totalMasuk =
-    Object.values(paidCount).reduce((a, b) => a + b, 0) * KAS_DAILY_AMOUNT +
+    Object.values(paidCount).reduce((a, b) => a + b, 0) * (KAS_DAILY_AMOUNT / 2) +
     students.reduce((a, s) => a + (s.saldo_awal || 0), 0);
   const saldoKas = totalMasuk - totalExpenses;
 
@@ -151,7 +151,7 @@ export const KasTab = ({ role }: Props) => {
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Kas Kelas</h2>
           <p className="text-sm text-muted-foreground">
-            {students.length} murid · Rp2.000/hari
+            {students.length} murid · Rp2.000/hari (Rp1.000 kas + Rp1.000 tabungan)
           </p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             <span className="px-2.5 py-1 rounded-md bg-muted animate-scale-in-soft">Masuk: <span className="font-medium text-foreground tabular-nums">{formatRp(totalMasuk)}</span></span>
@@ -221,7 +221,7 @@ export const KasTab = ({ role }: Props) => {
               </thead>
               <tbody>
                 {students.map((s, i) => {
-                  const total = (paidCount[s.id] ?? 0) * KAS_DAILY_AMOUNT + (s.saldo_awal || 0);
+                  const total = (paidCount[s.id] ?? 0) * (KAS_DAILY_AMOUNT / 2) + (s.saldo_awal || 0);
                   return (
                     <tr
                       key={s.id}
