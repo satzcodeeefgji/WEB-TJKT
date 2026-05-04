@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Migration file path
-MIGRATION_FILE="supabase/migrations/20260429120000_first_three_users_as_admin.sql"
+MIGRATION_FILE="supabase/migrations/20260501000007_add_kas_payments_kind.sql"
 
 # Supabase connection details
 SUPABASE_HOST="legelgunxohxkpqipnwl.db.supabase.co"
