@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
+const PROFILE_PHOTO_BUCKET = "profiles";
+
 const EditProfile = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -75,33 +77,32 @@ const EditProfile = () => {
     setLoading(true);
     try {
       const nisn = user.email?.split("@")[0];
-      let photoPath = photoPreview;
+      const updates: { name: string; absen: string; phone: string; profile_photo_path?: string } = {
+        name,
+        absen,
+        phone,
+      };
 
       // Upload foto profil jika ada file baru
       if (profilePhoto) {
         const fileName = `profile-${user.id}-${Date.now()}.jpg`;
-        const { error: uploadError } = await supabase.storage
-          .from("profiles")
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from(PROFILE_PHOTO_BUCKET)
           .upload(`photos/${fileName}`, profilePhoto);
 
         if (uploadError) {
           console.error("Upload error:", uploadError);
-          toast.error("Gagal upload foto profil");
+          toast.error(uploadError.message || "Gagal upload foto profil");
           return;
         }
 
-        photoPath = `photos/${fileName}`;
+        updates.profile_photo_path = uploadData?.path ?? `photos/${fileName}`;
       }
 
       // Update student record
       const { error } = await supabase
         .from("students")
-        .update({
-          name,
-          absen,
-          phone,
-          profile_photo_path: photoPath,
-        })
+        .update(updates)
         .eq("nisn", nisn);
 
       if (error) {

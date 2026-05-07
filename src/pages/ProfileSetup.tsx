@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
+const PROFILE_PHOTO_BUCKET = "profiles";
+
 const ProfileSetup = () => {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
@@ -49,17 +51,17 @@ const ProfileSetup = () => {
       
       // Upload foto profil
       const fileName = `profile-${user.id}-${Date.now()}.jpg`;
-      const { error: uploadError } = await supabase.storage
-        .from("profiles")
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from(PROFILE_PHOTO_BUCKET)
         .upload(`photos/${fileName}`, profilePhoto);
 
       if (uploadError) {
         console.error("Upload error:", uploadError);
-        toast.error("Gagal upload foto profil");
+        toast.error(uploadError.message || "Gagal upload foto profil");
         return;
       }
 
-      photoPath = `photos/${fileName}`;
+      photoPath = uploadData?.path ?? `photos/${fileName}`;
 
       // Update atau create student record
       const { data: existingStudent } = await supabase
