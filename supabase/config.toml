@@ -11,11 +11,13 @@ enabled = true
 [db]
 major_version = 15
 
-[api.swagger]
-enabled = true
+# Supabase CLI 2.x no longer supports api.swagger and api.realtime keys here.
+# Uncomment only if you know your CLI version supports them.
+# [api.swagger]
+# enabled = true
 
-[api.realtime]
-enabled = true
+# [api.realtime]
+# enabled = true
 
 [auth]
 # JWT secret dapat ditemukan di Supabase Dashboard > Settings > API
