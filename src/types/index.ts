@@ -25,5 +25,5 @@ export type Student = {
 
 export const KAS_DAILY_AMOUNT = 2000;
 export const KAS_HALF_AMOUNT = 1000;
-export const KAS_START = "2026-05-01"; // mulai Mei
+export const KAS_START = "2026-01-01"; // mulai Januari
 export const KAS_END = "2028-12-31"; // sampai akhir 2028

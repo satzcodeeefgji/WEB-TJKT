@@ -171,8 +171,8 @@ const KasMurid = () => {
     toast.success("Status pembayaran diperbarui");
   };
 
-  const totalPaidItems = Object.values(paid).reduce((sum, set) => sum + set.size, 0);
-  const totalPaid = totalPaidItems * (KAS_DAILY_AMOUNT / 2) + (student?.saldo_awal || 0);
+  const totalPaidKasItems = Object.values(paid).reduce((sum, set) => sum + (set.has("kas") ? 1 : 0), 0);
+  const totalPaid = totalPaidKasItems * (KAS_DAILY_AMOUNT / 2) + (student?.saldo_awal || 0);
 
   return (
     <div className="min-h-dvh bg-background">
@@ -196,12 +196,12 @@ const KasMurid = () => {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-fade-up animate-delay-1">
-              <Stat label="Setoran" value={`${totalPaidItems}x`} />
+              <Stat label="Setoran" value={`${totalPaidKasItems}x`} />
               <Stat label="Saldo Awal" value={formatRp(student.saldo_awal || 0)} />
               <Stat label="Tarif Harian" value={formatRp(KAS_DAILY_AMOUNT)} />
               <Stat label="Total Bayar" value={formatRp(totalPaid)} highlight />
             </div>
-            <p className="text-xs text-muted-foreground">Setiap hari: Rp1.000 kas + Rp1.000 tabungan.</p>
+            <p className="text-xs text-muted-foreground">Setiap hari: Rp1.000 kas + Rp1.000 gazibu.</p>
 
             {!isAdmin && (
               <p className="text-xs text-muted-foreground bg-muted/50 border rounded-lg px-3 py-2 animate-scale-in-soft">
@@ -214,7 +214,7 @@ const KasMurid = () => {
                 const days = eachDayOfInterval({ start: startOfMonth(m), end: endOfMonth(m) }).filter((d) => d.getDay() !== 0 && d.getDay() !== 6);
                 const monthPaid = days.reduce((sum, d) => {
                   const key = format(d, "yyyy-MM-dd");
-                  return sum + (isPaid(key, "kas") ? 1 : 0) + (isPaid(key, "tabungan") ? 1 : 0);
+                  return sum + (isPaid(key, "kas") ? 1 : 0);
                 }, 0);
                 return (
                   <section key={m.toISOString()} className="space-y-3 animate-fade-up">
@@ -223,7 +223,7 @@ const KasMurid = () => {
                         {format(m, "MMMM yyyy", { locale: idLocale })}
                       </h2>
                       <span className="text-sm text-muted-foreground">
-                        {monthPaid}/{days.length * 2} item · {formatRp(monthPaid * (KAS_DAILY_AMOUNT / 2))}
+                        {monthPaid}/{days.length} item · {formatRp(monthPaid * (KAS_DAILY_AMOUNT / 2))}
                       </span>
                     </div>
                     <div className="border rounded-xl overflow-hidden bg-card table-shell">
@@ -235,7 +235,7 @@ const KasMurid = () => {
                               <th className="px-4 py-2.5 font-medium w-28">Hari</th>
                               <th className="px-4 py-2.5 font-medium">Nominal</th>
                               <th className="px-4 py-2.5 font-medium text-center w-24">Kas</th>
-                              <th className="px-4 py-2.5 font-medium text-center w-28">Tabungan</th>
+                              <th className="px-4 py-2.5 font-medium text-center w-28">Gazibu</th>
                             </tr>
                           </thead>
                           <tbody>
