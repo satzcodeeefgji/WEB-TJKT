@@ -5,6 +5,7 @@ import { DokumentasiTab } from "@/components/DokumentasiTab";
 import { KasTab } from "@/components/KasTab";
 import { PengeluaranTab } from "@/components/PengeluaranTab";
 import { AuthButton } from "@/components/AuthButton";
+import { ProfileMenu } from "@/components/ProfileMenu";
 import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
@@ -28,7 +29,10 @@ const Index = () => {
               <span className="font-semibold tracking-tight">X-TJKT 2</span>
             </div>
           </div>
-          <AuthButton />
+          <div className="flex items-center gap-2">
+            <ProfileMenu />
+            <AuthButton />
+          </div>
         </div>
       </header>
 

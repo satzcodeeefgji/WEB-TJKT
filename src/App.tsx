@@ -5,9 +5,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ProfileChecker } from "@/components/ProfileChecker";
 import Index from "./pages/Index.tsx";
 import KasMurid from "./pages/KasMurid.tsx";
 import Auth from "./pages/Auth.tsx";
+import ProfileSetup from "./pages/ProfileSetup.tsx";
+import EditProfile from "./pages/EditProfile.tsx";
+import AdminPanel from "./pages/AdminPanel.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -18,10 +22,36 @@ const AppRoutes = () => {
       <Route path="/login" element={<Auth />} />
       <Route path="/auth" element={<Auth />} />
       <Route
+        path="/profile-setup"
+        element={
+          <ProtectedRoute>
+            <ProfileSetup />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/edit-profile"
+        element={
+          <ProtectedRoute>
+            <EditProfile />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute>
+            <AdminPanel />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/"
         element={
           <ProtectedRoute>
-            <Index />
+            <ProfileChecker>
+              <Index />
+            </ProfileChecker>
           </ProtectedRoute>
         }
       />
@@ -29,7 +59,9 @@ const AppRoutes = () => {
         path="/kas/:id"
         element={
           <ProtectedRoute>
-            <KasMurid />
+            <ProfileChecker>
+              <KasMurid />
+            </ProfileChecker>
           </ProtectedRoute>
         }
       />

@@ -28,6 +28,7 @@ export type Database = {
           description: string;
           deadline: string | null;
           photo_paths: string[];
+          edited_by: string | null;
           created_at: string;
         };
         Insert: {
@@ -36,6 +37,7 @@ export type Database = {
           description: string;
           deadline?: string | null;
           photo_paths?: string[];
+          edited_by?: string | null;
           created_at?: string;
         };
         Update: {
@@ -44,6 +46,7 @@ export type Database = {
           description?: string;
           deadline?: string | null;
           photo_paths?: string[];
+          edited_by?: string | null;
           created_at?: string;
         };
       };
@@ -54,6 +57,9 @@ export type Database = {
           absen: string;
           nisn: string;
           saldo_awal: number;
+          phone: string | null;
+          profile_photo_path: string | null;
+          is_profile_complete: boolean;
           created_at: string;
         };
         Insert: {
@@ -62,6 +68,9 @@ export type Database = {
           absen: string;
           nisn: string;
           saldo_awal?: number;
+          phone?: string | null;
+          profile_photo_path?: string | null;
+          is_profile_complete?: boolean;
           created_at?: string;
         };
         Update: {
@@ -70,6 +79,9 @@ export type Database = {
           absen?: string;
           nisn?: string;
           saldo_awal?: number;
+          phone?: string | null;
+          profile_photo_path?: string | null;
+          is_profile_complete?: boolean;
           created_at?: string;
         };
       };
@@ -79,6 +91,7 @@ export type Database = {
           student_id: string;
           paid_date: string;
           kind: "kas" | "tabungan";
+          edited_by: string | null;
           created_at: string;
         };
         Insert: {
@@ -86,6 +99,7 @@ export type Database = {
           student_id: string;
           paid_date: string;
           kind?: "kas" | "tabungan";
+          edited_by?: string | null;
           created_at?: string;
         };
         Update: {
@@ -93,6 +107,7 @@ export type Database = {
           student_id?: string;
           paid_date?: string;
           kind?: "kas" | "tabungan";
+          edited_by?: string | null;
           created_at?: string;
         };
       };
@@ -102,6 +117,7 @@ export type Database = {
           description: string;
           expense_date: string;
           amount: number;
+          edited_by: string | null;
           created_at: string;
         };
         Insert: {
@@ -109,6 +125,7 @@ export type Database = {
           description: string;
           expense_date: string;
           amount: number;
+          edited_by?: string | null;
           created_at?: string;
         };
         Update: {
@@ -116,6 +133,7 @@ export type Database = {
           description?: string;
           expense_date?: string;
           amount?: number;
+          edited_by?: string | null;
           created_at?: string;
         };
       };

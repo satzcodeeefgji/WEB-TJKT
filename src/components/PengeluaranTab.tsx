@@ -9,15 +9,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { withTimeout } from "@/lib/async";
 import { toast } from "sonner";
 
-type Expense = { id: string; description: string; expense_date: string; amount: number };
+type Expense = { id: string; description: string; expense_date: string; amount: number; edited_by: string | null };
 type Props = { role: string | null };
 
 const formatRp = (n: number) => "Rp" + n.toLocaleString("id-ID");
 
 export const PengeluaranTab = ({ role }: Props) => {
+  const { user } = useAuth();
   const isAdmin = role === "admin";
   const loadIdRef = useRef(0);
   const hasLoadedRef = useRef(false);
@@ -96,6 +98,7 @@ export const PengeluaranTab = ({ role }: Props) => {
       description: desc.trim(),
       expense_date: date,
       amount: num,
+      edited_by: user?.email || null,
     });
 
     if (error) {
