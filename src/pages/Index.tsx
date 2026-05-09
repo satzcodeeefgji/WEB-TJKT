@@ -18,18 +18,18 @@ const Index = () => {
 
   return (
     <div className="min-h-dvh bg-background text-foreground">
-      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b animate-fade-up">
+      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b animate-slide-in-left">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="size-9 bg-primary text-primary-foreground grid place-items-center font-bold text-sm rounded-lg transition-transform duration-300 hover:rotate-3 hover:scale-105">
+          <div className="flex items-center gap-3 hover-scale">
+            <div className="size-9 bg-primary text-primary-foreground grid place-items-center font-bold text-sm rounded-lg transition-transform duration-300 hover:rotate-3 hover:scale-105 animate-bounce-in">
               X2
             </div>
             <div className="flex flex-col leading-tight">
-              <span className="text-xs text-muted-foreground">SMK · TJKT</span>
-              <span className="font-semibold tracking-tight">X-TJKT 2</span>
+              <span className="text-xs text-muted-foreground animate-fade-in animate-delay-1">SMK · TJKT</span>
+              <span className="font-semibold tracking-tight animate-fade-in animate-delay-2">X-TJKT 2</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 animate-slide-in-right">
             <ProfileMenu />
             <AuthButton />
           </div>
@@ -38,31 +38,31 @@ const Index = () => {
 
       <main className="max-w-6xl mx-auto px-6 py-10 md:py-16">
         <section className="mb-12 max-w-2xl animate-fade-up animate-delay-1">
-          <span className="inline-block text-xs font-medium px-2.5 py-1 rounded-full bg-muted text-muted-foreground mb-4 animate-scale-in-soft animate-delay-2">
+          <span className="inline-block text-xs font-medium px-2.5 py-1 rounded-full bg-muted text-muted-foreground mb-4 animate-scale-in-soft animate-delay-2 hover-glow">
             Ruang digital kelas
           </span>
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight leading-[1.05]">
-            Semua tentang kelas <span className="text-primary">X-TJKT 2</span>, di satu tempat.
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight leading-[1.05] animate-fade-up animate-delay-3">
+            Semua tentang kelas <span className="text-primary animate-pulse-soft">X-TJKT 2</span>, di satu tempat.
           </h1>
         </section>
 
         {/* 🔥 PANEL ADMIN */}
         {role === "admin" && (
-          <div className="mb-6 p-4 border rounded-xl bg-green-100 animate-scale-in-soft">
-            <h2 className="font-bold text-lg mb-2">Panel Admin</h2>
-            <p className="text-sm">Admin aktif ✅</p>
+          <div className="mb-6 p-4 border rounded-xl bg-green-100 animate-bounce-in hover-lift">
+            <h2 className="font-bold text-lg mb-2 animate-fade-in">Panel Admin</h2>
+            <p className="text-sm animate-fade-in animate-delay-1">Admin aktif ✅</p>
           </div>
         )}
 
-        <Tabs defaultValue="dokumentasi" className="w-full animate-fade-up animate-delay-3">
-          <TabsList className="bg-muted/60 p-1 h-auto flex-wrap">
-            <TabsTrigger value="dokumentasi">Dokumentasi</TabsTrigger>
-            <TabsTrigger value="tugas">Tugas</TabsTrigger>
-            <TabsTrigger value="kas">Kas</TabsTrigger>
-            <TabsTrigger value="pengeluaran">Pengeluaran</TabsTrigger>
+        <Tabs defaultValue="dokumentasi" className="w-full animate-fade-up animate-delay-4">
+          <TabsList className="bg-muted/60 p-1 h-auto flex-wrap animate-scale-in-soft animate-delay-5">
+            <TabsTrigger value="dokumentasi" className="hover-scale transition-all duration-200">Dokumentasi</TabsTrigger>
+            <TabsTrigger value="tugas" className="hover-scale transition-all duration-200">Tugas</TabsTrigger>
+            <TabsTrigger value="kas" className="hover-scale transition-all duration-200">Kas</TabsTrigger>
+            <TabsTrigger value="pengeluaran" className="hover-scale transition-all duration-200">Pengeluaran</TabsTrigger>
           </TabsList>
 
-          <div className="mt-8">
+          <div className="mt-8 animate-fade-in animate-delay-5">
             <TabsContent value="dokumentasi">
               <DokumentasiTab role={role} />
             </TabsContent>

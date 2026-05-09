@@ -21,9 +21,9 @@ export const AuthButton = () => {
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 animate-fade-in">
       {isAdmin && (
-        <span className="hidden sm:inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-success/10 text-success">
+        <span className="hidden sm:inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-success/10 text-success animate-bounce-in hover-lift">
           <ShieldCheck className="size-3" /> Admin
         </span>
       )}
@@ -38,7 +38,7 @@ export const AuthButton = () => {
           navigate("/auth", { replace: true });
           setBusy(false);
         }}
-        className="gap-1.5"
+        className="gap-1.5 hover-lift"
       >
         <LogOut className="size-4" /> Keluar
       </Button>

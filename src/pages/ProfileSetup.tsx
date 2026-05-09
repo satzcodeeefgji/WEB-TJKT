@@ -48,7 +48,7 @@ const ProfileSetup = () => {
     setLoading(true);
     try {
       let photoPath = "";
-      
+
       // Upload foto profil
       const fileName = `profile-${user.id}-${Date.now()}.jpg`;
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -57,11 +57,26 @@ const ProfileSetup = () => {
 
       if (uploadError) {
         console.error("Upload error:", uploadError);
-        toast.error(uploadError.message || "Gagal upload foto profil");
+        const message = uploadError.message?.includes("Bucket not found")
+          ? `Bucket Supabase '${PROFILE_PHOTO_BUCKET}' tidak ditemukan. Buat bucket '${PROFILE_PHOTO_BUCKET}' di Storage.`
+          : uploadError.message || "Gagal upload foto profil";
+        toast.error(message);
         return;
       }
 
       photoPath = uploadData?.path ?? `photos/${fileName}`;
+
+      // ===== INSERT PROFILE SUPABASE =====
+      const { error: profileError } = await supabase.from("profiles").insert({
+        id: user.id,
+        nisn: user.email?.split("@")[0],
+        role: "user"
+      });
+      if (profileError && !profileError.message.includes("duplicate")) {
+        console.error("Insert profile error:", profileError);
+        toast.error("Gagal membuat profile Supabase");
+        return;
+      }
 
       // Update atau create student record
       const { data: existingStudent } = await supabase

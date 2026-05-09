@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,11 +30,12 @@ const EditProfile = () => {
     const loadProfile = async () => {
       try {
         const nisn = user.email?.split("@")[0];
+        type StudentRow = Database["public"]["Tables"]["students"]["Row"];
         const { data } = await supabase
           .from("students")
           .select("*")
           .eq("nisn", nisn)
-          .single();
+          .single<StudentRow>();
 
         if (data) {
           setName(data.name || "");
@@ -77,7 +79,8 @@ const EditProfile = () => {
     setLoading(true);
     try {
       const nisn = user.email?.split("@")[0];
-      const updates: { name: string; absen: string; phone: string; profile_photo_path?: string } = {
+      type StudentUpdate = Database["public"]["Tables"]["students"]["Update"];
+      const updates: StudentUpdate = {
         name,
         absen,
         phone,
@@ -92,7 +95,10 @@ const EditProfile = () => {
 
         if (uploadError) {
           console.error("Upload error:", uploadError);
-          toast.error(uploadError.message || "Gagal upload foto profil");
+          const message = uploadError.message?.includes("Bucket not found")
+            ? `Bucket Supabase '${PROFILE_PHOTO_BUCKET}' tidak ditemukan. Buat bucket '${PROFILE_PHOTO_BUCKET}' di Storage.`
+            : uploadError.message || "Gagal upload foto profil";
+          toast.error(message);
           return;
         }
 
@@ -100,8 +106,8 @@ const EditProfile = () => {
       }
 
       // Update student record
-      const { error } = await supabase
-        .from("students")
+      const { error } = await (supabase
+        .from("students") as any)
         .update(updates)
         .eq("nisn", nisn);
 

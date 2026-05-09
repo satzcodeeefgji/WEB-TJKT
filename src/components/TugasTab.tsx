@@ -215,11 +215,11 @@ export const TugasTab = ({ role }: Props) => {
   return (
     <section className="space-y-6 animate-fade-up">
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight">
+        <div className="animate-fade-in">
+          <h2 className="text-2xl font-semibold tracking-tight animate-fade-up">
             Daftar Tugas
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground animate-fade-up animate-delay-1">
             {tasks.length} tugas tersimpan
           </p>
         </div>
@@ -227,17 +227,17 @@ export const TugasTab = ({ role }: Props) => {
         {isAdmin && (
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button className="hover-lift animate-bounce-in">
                 <Plus className="size-4 mr-1" /> Tambah Tugas
               </Button>
             </DialogTrigger>
 
-            <DialogContent>
+            <DialogContent className="animate-scale-in-soft">
               <DialogHeader>
-                <DialogTitle>Tugas Baru</DialogTitle>
+                <DialogTitle className="animate-fade-in">Tugas Baru</DialogTitle>
               </DialogHeader>
 
-              <div className="space-y-4">
+              <div className="space-y-4 animate-fade-up">
                 <div>
                   <Label>Judul</Label>
                   <Input
