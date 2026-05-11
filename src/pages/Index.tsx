@@ -42,9 +42,14 @@ const Index = () => {
           <span className="inline-block text-xs font-medium px-2.5 py-1 rounded-full bg-muted text-muted-foreground mb-4 animate-scale-in-soft animate-delay-2 hover-glow">
             Ruang digital kelas
           </span>
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight leading-[1.05] animate-fade-up animate-delay-3">
-            Semua tentang kelas <span className="text-primary animate-pulse-soft">X-TJKT 2</span>, di satu tempat.
-          </h1>
+          <div className="video-text-bg">
+            <video autoPlay muted loop playsInline className="absolute">
+              <source src="/aurora1.mp4" type="video/mp4" />
+            </video>
+            <h1 className="text-4xl md:text-6xl font-bold tracking-tight leading-[1.05] animate-fade-up animate-delay-3 video-text-bg-text">
+              Semua tentang kelas X-TJKT 2, di satu tempat.
+            </h1>
+          </div>
         </section>
 
         {/* 🔥 PANEL ADMIN */}

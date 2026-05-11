@@ -327,6 +327,42 @@
   .stagger-children > *:nth-child(7) { animation-delay: 480ms; }
   .stagger-children > *:nth-child(8) { animation-delay: 560ms; }
 
+  /* Video Background Text Effect */
+  .video-text-bg {
+    position: relative;
+    display: inline-block;
+  }
+
+  .video-text-bg video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .video-text-bg-text {
+    background: linear-gradient(90deg, #ff00ff, #00ffff, #ff00ff);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: aurora-gradient 3s ease-in-out infinite;
+  }
+
+  @keyframes aurora-gradient {
+    0%, 100% {
+      background-position: 0% center;
+    }
+    50% {
+      background-position: 100% center;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .animate-fade-up,
     .animate-scale-in-soft,
