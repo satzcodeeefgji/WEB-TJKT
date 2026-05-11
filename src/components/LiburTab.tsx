@@ -120,10 +120,17 @@ export const LiburTab = ({ role }: Props) => {
   };
 
   const removeLibur = async (dateToDelete: string) => {
+    console.log("Attempting to delete libur for date:", dateToDelete);
+    console.log("User role:", role);
+    console.log("Is admin:", isAdmin);
+
     const { error } = await supabase.from("libur_records").delete().eq("libur_date", dateToDelete);
+
+    console.log("Delete result:", { error, success: !error });
+
     if (error) {
       console.error("Remove libur failed", error);
-      toast.error("Gagal menghapus jadwal libur");
+      toast.error(`Gagal menghapus jadwal libur: ${error.message}`);
       return;
     }
     toast.success("Jadwal libur dihapus");
