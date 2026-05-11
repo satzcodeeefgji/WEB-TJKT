@@ -32,7 +32,7 @@ export const LiburTab = ({ role }: Props) => {
 
     try {
       const { data, error } = await withTimeout(
-        supabase.from("libur_records").select("libur_date").order("libur_date", { ascending: true }),
+        supabase.from("libur_records").select("libur_date").eq("is_active", true).order("libur_date", { ascending: true }),
         "Memuat jadwal libur terlalu lama. Coba refresh halaman."
       );
 
@@ -64,7 +64,8 @@ export const LiburTab = ({ role }: Props) => {
     const { data: existing, error: existingError } = await supabase
       .from("libur_records")
       .select("student_id")
-      .eq("libur_date", selectedDate);
+      .eq("libur_date", selectedDate)
+      .eq("is_active", true);
 
     if (existingError) {
       console.error("Libur existing check error:", existingError);
@@ -120,40 +121,47 @@ export const LiburTab = ({ role }: Props) => {
   };
 
   const removeLibur = async (dateToDelete: string) => {
-    console.log("Attempting to delete libur for date:", dateToDelete);
+    console.log("Attempting to deactivate libur for date:", dateToDelete);
     console.log("User role:", role);
     console.log("Is admin:", isAdmin);
 
-    const { error } = await supabase.from("libur_records").delete().eq("libur_date", dateToDelete);
+    const { error } = await supabase
+      .from("libur_records")
+      .update({ is_active: false })
+      .eq("libur_date", dateToDelete)
+      .eq("is_active", true);
 
-    console.log("Delete result:", { error, success: !error });
+    console.log("Deactivate libur result:", { error, success: !error });
 
     if (error) {
       console.error("Remove libur failed", error);
-      toast.error(`Gagal menghapus jadwal libur: ${error.message}`);
+      toast.error(`Gagal menonaktifkan jadwal libur: ${error.message}`);
       return;
     }
-    toast.success("Jadwal libur dihapus");
+    toast.success("Jadwal libur dinonaktifkan");
     setDeleteDialogOpen(false);
     setPendingDeleteDate(null);
     load();
   };
 
   const clearLibur = async () => {
-    console.log("Attempting to clear all libur records");
+    console.log("Attempting to deactivate all active libur records");
     console.log("User role:", role);
     console.log("Is admin:", isAdmin);
 
-    const { error } = await supabase.from("libur_records").delete();
+    const { error } = await supabase
+      .from("libur_records")
+      .update({ is_active: false })
+      .eq("is_active", true);
 
     console.log("Clear libur result:", { error, success: !error });
 
     if (error) {
       console.error("Clear libur failed", error);
-      toast.error(`Gagal menghapus jadwal libur: ${error.message}`);
+      toast.error(`Gagal mengakhiri masa libur: ${error.message}`);
       return;
     }
-    toast.success("Semua jadwal libur dihapus. Kas kembali berjalan.");
+    toast.success("Masa libur telah diakhiri. Kas kembali berjalan.");
     setClearAllDialogOpen(false);
     load();
   };

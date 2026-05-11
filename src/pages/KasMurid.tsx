@@ -11,7 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { withTimeout } from "@/lib/async";
 import { toast } from "sonner";
 
-type Student = { id: string; name: string; absen: string; nisn: string; saldo_awal: number };
+type Student = { id: string; name: string; absen: string; nisn: string; saldo_awal: number; profile_photo_path?: string; phone?: string };
 type PaymentKind = "kas" | "tabungan";
 type PaidMap = Record<string, Set<PaymentKind>>;
 const formatRp = (n: number) => "Rp" + n.toLocaleString("id-ID");
@@ -20,10 +20,12 @@ const KasMurid = () => {
   const { id } = useParams<{ id: string }>();
   const { isAdmin } = useAuth();
   const [student, setStudent] = useState<Student | null>(null);
+  const [studentPhoto, setStudentPhoto] = useState<string>("");
   const [paid, setPaid] = useState<PaidMap>({});
   const [supportsKind, setSupportsKind] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [liburDates, setLiburDates] = useState<Set<string>>(new Set());
 
   const months = useMemo(() => {
     const start = startOfMonth(parseISO(KAS_START));
@@ -48,6 +50,7 @@ const KasMurid = () => {
         Promise.all([
           supabase.from("students").select("*").eq("id", id).single(),
           supabase.from("kas_payments").select("paid_date,kind").eq("student_id", id),
+          supabase.from("libur_records").select("start_date,end_date").eq("is_active", true),
         ]),
         "Memuat detail kas terlalu lama. Coba refresh halaman."
       );
@@ -56,6 +59,14 @@ const KasMurid = () => {
         console.error("Load student error:", studentResult.error);
         setNotFound(true);
         return;
+      }
+
+      // Load student photo if available
+      if (studentResult.data?.profile_photo_path) {
+        const { data: urlData } = supabase.storage
+          .from("profiles")
+          .getPublicUrl(studentResult.data.profile_photo_path);
+        setStudentPhoto(urlData?.publicUrl || "");
       }
 
       if (paymentsResult.error) {
@@ -90,10 +101,25 @@ const KasMurid = () => {
         return;
       }
 
+      // Process libur data
+      const liburResult = paymentsResult.data[2] as any[];
+      if (liburResult) {
+        const liburSet = new Set<string>();
+        liburResult.forEach((libur) => {
+          const startDate = parseISO(libur.start_date);
+          const endDate = parseISO(libur.end_date);
+          const dates = eachDayOfInterval({ start: startDate, end: endDate });
+          dates.forEach((date) => {
+            liburSet.add(format(date, "yyyy-MM-dd"));
+          });
+        });
+        setLiburDates(liburSet);
+      }
+
       setSupportsKind(true);
       setStudent(studentResult.data);
       setPaid(
-        (paymentsResult.data ?? []).reduce<PaidMap>((acc, payment) => {
+        (paymentsResult.data[0] ?? []).reduce<PaidMap>((acc, payment) => {
           const key = payment.paid_date;
           const kind = (payment as any).kind || "kas";
           acc[key] = acc[key] ?? new Set();
@@ -116,32 +142,67 @@ const KasMurid = () => {
 
   const isPaid = (dateKey: string, kind: PaymentKind) => paid[dateKey]?.has(kind) ?? false;
 
-  const togglePayment = async (dateKey: string, kind: PaymentKind) => {
+  const isLibur = (dateKey: string) => liburDates.has(dateKey);
+
+  const getMonthDaysUpTo = (endDateKey: string) => {
+    const endDate = parseISO(endDateKey);
+    const startDate = startOfMonth(endDate);
+    return eachDayOfInterval({ start: startDate, end: endDate })
+      .filter((d) => d.getDay() !== 0 && d.getDay() !== 6)
+      .map((d) => format(d, "yyyy-MM-dd"));
+  };
+
+  const markPaidThrough = async (endDateKey: string, kind: PaymentKind) => {
     if (!isAdmin || !student) return toast.error("Hanya admin yang bisa menandai pembayaran");
-
-    const paymentExists = isPaid(dateKey, kind);
-    let error = null;
-
     if (supportsKind === false && kind === "tabungan") {
       return toast.error("Database belum mendukung tabungan. Jalankan migrasi Supabase.");
     }
 
-    if (paymentExists) {
-      const query = supabase.from("kas_payments").delete().eq("student_id", student.id).eq("paid_date", dateKey);
-      if (supportsKind !== false) query.eq("kind", kind);
-      const result = await query;
-      error = result.error;
-    } else {
-      const payload: Record<string, unknown> = {
-        student_id: student.id,
-        paid_date: dateKey,
-      };
-      if (supportsKind !== false) {
-        payload.kind = kind;
-      }
-      const result = await supabase.from("kas_payments").insert(payload as any);
-      error = result.error;
+    const dateKeys = getMonthDaysUpTo(endDateKey);
+    const missingKeys = dateKeys.filter((key) => !isPaid(key, kind));
+    if (missingKeys.length === 0) {
+      return toast(`Semua tanggal sampai ${endDateKey} sudah terbayar.`);
     }
+
+    const payloads = missingKeys.map((paidDate) => ({
+      student_id: student.id,
+      paid_date: paidDate,
+      ...(supportsKind !== false ? { kind } : {}),
+    }));
+
+    const result = await supabase.from("kas_payments").insert(payloads as any);
+    if (result.error) {
+      toast.error("Gagal menandai pembayaran sampai tanggal tersebut");
+      console.error("Mark paid through error:", result.error);
+      return;
+    }
+
+    setPaid((current) => {
+      const next = { ...current };
+      missingKeys.forEach((key) => {
+        const currentSet = new Set(next[key] ?? []);
+        currentSet.add(kind);
+        next[key] = currentSet;
+      });
+      return next;
+    });
+
+    toast.success(`Sudah dibayar sampai ${endDateKey}`);
+  };
+
+  const togglePayment = async (dateKey: string, kind: PaymentKind) => {
+    if (!isAdmin || !student) return toast.error("Hanya admin yang bisa menandai pembayaran");
+
+    const paymentExists = isPaid(dateKey, kind);
+    if (!paymentExists) {
+      return markPaidThrough(dateKey, kind);
+    }
+
+    let error = null;
+    const query = supabase.from("kas_payments").delete().eq("student_id", student.id).eq("paid_date", dateKey);
+    if (supportsKind !== false) query.eq("kind", kind);
+    const result = await query;
+    error = result.error;
 
     if (error) {
       toast.error("Gagal memperbarui pembayaran");
@@ -152,12 +213,7 @@ const KasMurid = () => {
     setPaid((current) => {
       const next = { ...current };
       const currentSet = new Set(current[dateKey] ?? []);
-
-      if (paymentExists) {
-        currentSet.delete(kind);
-      } else {
-        currentSet.add(kind);
-      }
+      currentSet.delete(kind);
 
       if (currentSet.size > 0) {
         next[dateKey] = currentSet;
@@ -190,9 +246,27 @@ const KasMurid = () => {
           <p className="text-sm text-muted-foreground animate-pulse">Memuat...</p>
         ) : (
           <>
-            <div className="space-y-1 animate-fade-up">
-              <p className="text-sm text-muted-foreground">No Absen {student.absen} · NIS {student.nisn || "—"}</p>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{student.name}</h1>
+            <div className="space-y-4 animate-fade-up">
+              <div className="flex items-start gap-6 flex-wrap">
+                {studentPhoto && (
+                  <div className="flex-shrink-0">
+                    <img
+                      src={studentPhoto}
+                      alt={student.name}
+                      className="w-32 h-32 rounded-lg object-cover border-2 border-primary/20"
+                    />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground">No Absen {student.absen} · NIS {student.nisn || "—"}</p>
+                  <h1 className="text-3xl md:text-4xl font-bold tracking-tight mt-1">{student.name}</h1>
+                  {student.phone && (
+                    <p className="text-sm text-muted-foreground mt-2">
+                      WhatsApp: <span className="font-medium text-foreground">{student.phone}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-fade-up animate-delay-1">
@@ -256,13 +330,15 @@ const KasMurid = () => {
                                     <button
                                       type="button"
                                       onClick={() => togglePayment(key, "kas")}
-                                      disabled={!isAdmin}
+                                      disabled={!isAdmin || isLibur(key)}
                                       aria-pressed={kasPaid}
                                       className={`inline-flex items-center justify-center size-7 rounded-md border transition-all duration-200 hover:scale-105 active:scale-95 ${
                                         kasPaid
                                           ? "bg-success border-success text-success-foreground"
+                                          : isLibur(key)
+                                          ? "bg-muted border-muted-foreground/20 text-muted-foreground cursor-not-allowed"
                                           : "bg-background border-input hover:border-foreground/40"
-                                      } ${!isAdmin ? "cursor-not-allowed" : "cursor-pointer"}`}
+                                      } ${(!isAdmin || isLibur(key)) ? "cursor-not-allowed" : "cursor-pointer"}`}
                                     >
                                       {kasPaid && <Check className="size-4" strokeWidth={3} />}
                                     </button>
@@ -271,13 +347,15 @@ const KasMurid = () => {
                                     <button
                                       type="button"
                                       onClick={() => togglePayment(key, "tabungan")}
-                                      disabled={!isAdmin}
+                                      disabled={!isAdmin || isLibur(key)}
                                       aria-pressed={tabunganPaid}
                                       className={`inline-flex items-center justify-center size-7 rounded-md border transition-all duration-200 hover:scale-105 active:scale-95 ${
                                         tabunganPaid
                                           ? "bg-success border-success text-success-foreground"
+                                          : isLibur(key)
+                                          ? "bg-muted border-muted-foreground/20 text-muted-foreground cursor-not-allowed"
                                           : "bg-background border-input hover:border-foreground/40"
-                                      } ${!isAdmin ? "cursor-not-allowed" : "cursor-pointer"}`}
+                                      } ${(!isAdmin || isLibur(key)) ? "cursor-not-allowed" : "cursor-pointer"}`}
                                     >
                                       {tabunganPaid && <Check className="size-4" strokeWidth={3} />}
                                     </button>

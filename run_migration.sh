@@ -1,12 +1,17 @@
 #!/bin/bash
 
-# Migration file path
-MIGRATION_FILE="supabase/migrations/20260501000007_add_kas_payments_kind.sql"
+# Directory containing SQL migration files
+MIGRATIONS_DIR="supabase/migrations"
 
-# Supabase connection details
+# Supabase database connection details
 SUPABASE_HOST="legelgunxohxkpqipnwl.db.supabase.co"
 SUPABASE_USER="postgres"
 SUPABASE_DB="postgres"
+
+if [ ! -d "$MIGRATIONS_DIR" ]; then
+  echo "[ERROR] Folder migration tidak ditemukan: $MIGRATIONS_DIR"
+  exit 1
+fi
 
 echo "=== Supabase Migration Runner ==="
 echo "Project: legelgunxohxkpqipnwl"
@@ -16,12 +21,16 @@ read -s DB_PASSWORD
 
 export PGPASSWORD=$DB_PASSWORD
 
-# Run migration
-psql -h $SUPABASE_HOST -U $SUPABASE_USER -d $SUPABASE_DB -p 5432 -f $MIGRATION_FILE
+echo "Menjalankan semua file SQL di $MIGRATIONS_DIR"
 
-if [ $? -eq 0 ]; then
-  echo "✓ Migration berhasil dijalankan!"
-else
-  echo "✗ Ada error saat menjalankan migration"
-  exit 1
-fi
+for migration in $(ls "$MIGRATIONS_DIR"/*.sql | sort); do
+  echo "- Running $migration"
+  psql -h $SUPABASE_HOST -U $SUPABASE_USER -d $SUPABASE_DB -p 5432 -f "$migration"
+  if [ $? -ne 0 ]; then
+    echo "✗ Error pada migration: $migration"
+    exit 1
+  fi
+  echo "  ✓ Selesai"
+done
+
+echo "✓ Semua migration berhasil dijalankan!"

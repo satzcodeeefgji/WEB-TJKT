@@ -3,7 +3,7 @@
 $SUPABASE_HOST = "legelgunxohxkpqipnwl.db.supabase.co"
 $SUPABASE_USER = "postgres"
 $SUPABASE_DB = "postgres"
-$MIGRATION_FILE = "supabase/migrations/20260501000007_add_kas_payments_kind.sql"
+$MIGRATIONS_DIR = "supabase/migrations"
 
 Write-Host "=== Supabase Migration Runner ===" -ForegroundColor Green
 Write-Host "Project: legelgunxohxkpqipnwl" -ForegroundColor Cyan
@@ -20,35 +20,40 @@ if (-not $psqlCmd) {
 $psqlVersion = & $psqlCmd.Path --version
 Write-Host "PostgreSQL CLI found: $psqlVersion" -ForegroundColor Green
 
+if (!(Test-Path $MIGRATIONS_DIR)) {
+    Write-Host "[ERROR] Folder migration tidak ditemukan: $MIGRATIONS_DIR" -ForegroundColor Red
+    exit 1
+}
+
+$scriptFiles = Get-ChildItem -Path $MIGRATIONS_DIR -Filter *.sql | Sort-Object Name
+if ($scriptFiles.Count -eq 0) {
+    Write-Host "[ERROR] Tidak ada file SQL di folder: $MIGRATIONS_DIR" -ForegroundColor Red
+    exit 1
+}
+
 Write-Host ""
 Write-Host "Masukkan database password dari Supabase Dashboard:" -ForegroundColor Yellow
 Write-Host '(Settings > Database > Show password)' -ForegroundColor DarkGray
 $DB_PASSWORD = Read-Host "Password" -AsSecureString
 
-# Convert secure string to plain text for environment variable
 $ptr = [System.Runtime.InteropServices.Marshal]::SecureStringToCoTaskMemUnicode($DB_PASSWORD)
 $plainPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringUni($ptr)
-
-# Set environment variable
 $env:PGPASSWORD = $plainPassword
 
-# Verify migration file exists
-if (!(Test-Path $MIGRATION_FILE)) {
-    Write-Host "[ERROR] Migration file not found: $MIGRATION_FILE" -ForegroundColor Red
-    exit 1
+Write-Host ""
+Write-Host "Menjalankan semua file SQL di $MIGRATIONS_DIR" -ForegroundColor Cyan
+
+foreach ($script in $scriptFiles) {
+    Write-Host "- Running $($script.Name)" -ForegroundColor Cyan
+    & $psqlCmd.Path -h $SUPABASE_HOST -U $SUPABASE_USER -d $SUPABASE_DB -p 5432 -f $script.FullName
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERROR] Ada error saat menjalankan $($script.Name) (exit code: $LASTEXITCODE)" -ForegroundColor Red
+        $env:PGPASSWORD = ""
+        exit 1
+    }
+    Write-Host "  ✓ Selesai $($script.Name)" -ForegroundColor Green
 }
 
 Write-Host ""
-Write-Host "Menjalankan migration..." -ForegroundColor Cyan
-& $psqlCmd.Path -h $SUPABASE_HOST -U $SUPABASE_USER -d $SUPABASE_DB -p 5432 -f $MIGRATION_FILE
-
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "Migration berhasil dijalankan!" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "Selesai. Silakan refresh aplikasi Anda." -ForegroundColor Cyan
-} else {
-    Write-Host "[ERROR] Ada error saat menjalankan migration (exit code: $LASTEXITCODE)" -ForegroundColor Red
-}
-
-# Clear password from memory
+Write-Host "✓ Semua migration berhasil dijalankan!" -ForegroundColor Green
 $env:PGPASSWORD = ""

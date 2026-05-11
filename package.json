@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "reminder": "node ./whatsapp-reminder.mjs",
+    "migrate": "node run_migration.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },

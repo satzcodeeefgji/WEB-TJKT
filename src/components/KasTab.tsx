@@ -100,7 +100,7 @@ export const KasTab = ({ role }: Props) => {
           supabase.from("students").select("*").order("absen", { ascending: true }),
           supabase.from("kas_payments").select("student_id,paid_date"),
           supabase.from("expenses").select("amount"),
-          supabase.from("libur_records").select("student_id,libur_date"),
+          supabase.from("libur_records").select("student_id,libur_date").eq("is_active", true),
           supabase.from("saldo_deductions").select("student_id,deduction_amount"),
         ]),
         "Memuat data kas terlalu lama. Coba refresh halaman."

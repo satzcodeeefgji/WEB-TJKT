@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TugasTab } from "@/components/TugasTab";
 import { DokumentasiTab } from "@/components/DokumentasiTab";
 import { KasTab } from "@/components/KasTab";
+import { LiburTab } from "../components/LiburTab";
 import { PengeluaranTab } from "@/components/PengeluaranTab";
 import { AuthButton } from "@/components/AuthButton";
 import { ProfileMenu } from "@/components/ProfileMenu";
@@ -59,6 +60,7 @@ const Index = () => {
             <TabsTrigger value="dokumentasi" className="hover-scale transition-all duration-200">Dokumentasi</TabsTrigger>
             <TabsTrigger value="tugas" className="hover-scale transition-all duration-200">Tugas</TabsTrigger>
             <TabsTrigger value="kas" className="hover-scale transition-all duration-200">Kas</TabsTrigger>
+            <TabsTrigger value="libur" className="hover-scale transition-all duration-200">Libur</TabsTrigger>
             <TabsTrigger value="pengeluaran" className="hover-scale transition-all duration-200">Pengeluaran</TabsTrigger>
           </TabsList>
 
@@ -73,6 +75,10 @@ const Index = () => {
 
             <TabsContent value="kas">
               <KasTab role={role} />
+            </TabsContent>
+
+            <TabsContent value="libur">
+              <LiburTab role={role} />
             </TabsContent>
 
             <TabsContent value="pengeluaran">

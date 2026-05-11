@@ -160,6 +160,52 @@ export type Database = {
           created_at?: string;
         };
       };
+      libur_records: {
+        Row: {
+          id: string;
+          student_id: string;
+          libur_date: string;
+          created_at: string;
+          is_active: boolean;
+        };
+        Insert: {
+          id?: string;
+          student_id: string;
+          libur_date: string;
+          created_at?: string;
+          is_active?: boolean;
+        };
+        Update: {
+          id?: string;
+          student_id?: string;
+          libur_date?: string;
+          created_at?: string;
+          is_active?: boolean;
+        };
+      };
+      saldo_deductions: {
+        Row: {
+          id: string;
+          student_id: string;
+          expense_id: string;
+          deduction_amount: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          student_id: string;
+          expense_id: string;
+          deduction_amount: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          student_id?: string;
+          expense_id?: string;
+          deduction_amount?: number;
+          created_at?: string;
+        };
+      };
     };
     Views: {};
     Functions: {};

@@ -30,6 +30,8 @@ const withTimeout = async <T,>(promise: Promise<T>, ms: number, message: string)
   }
 };
 
+export const ADMIN_NIS = new Set(["12531074"]);
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -114,6 +116,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const fetchUserRole = async (currentUser: User) => {
+    const nisn = currentUser.email?.split("@")[0] ?? currentUser.id;
+    const defaultRole = ADMIN_NIS.has(nisn) ? "admin" : "user";
+
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -122,17 +127,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .single();
 
       if (error) {
-        if (error.code === "PGRST116") {
-          const nisn = currentUser.email?.split("@")[0] ?? currentUser.id;
+        if (error.code === "PGRST116" || error.code === "PGRST118") {
           const { error: createError } = await supabase.from("profiles").upsert({
             id: currentUser.id,
             nisn,
+            role: defaultRole,
           });
 
           if (!createError) {
-            setRole("user");
+            setRole(defaultRole);
             setRoleError(null);
-            setIsAdmin(false);
+            setIsAdmin(defaultRole === "admin");
             return;
           }
         }
@@ -144,9 +149,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      setRole(data?.role ?? null);
+      const resolvedRole = data?.role || defaultRole;
+
+      if (!data?.role) {
+        await supabase.from("profiles").update({ role: resolvedRole }).eq("id", currentUser.id);
+      }
+
+      if (ADMIN_NIS.has(nisn) && resolvedRole !== "admin") {
+        await supabase.from("profiles").update({ role: "admin" }).eq("id", currentUser.id);
+        setRole("admin");
+        setIsAdmin(true);
+        setRoleError(null);
+        return;
+      }
+
+      setRole(resolvedRole);
       setRoleError(null);
-      setIsAdmin(data?.role === "admin");
+      setIsAdmin(resolvedRole === "admin");
     } catch (error) {
       console.error("Error fetching user role:", error);
       setRole(null);
@@ -175,8 +194,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signUp = async (email: string, password: string, nisn: string) => {
+    const normalizedNisn = nisn.trim();
+    const role = ADMIN_NIS.has(normalizedNisn) ? "admin" : "user";
+
     try {
-      // Sign up with auth
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -191,10 +212,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error("User tidak ditemukan setelah sign up");
       }
 
-      // Create profile
       const { error: profileError } = await supabase.from("profiles").insert({
         id: data.user.id,
-        nisn: nisn.trim(),
+        nisn: normalizedNisn,
+        role,
       });
 
       if (profileError) {

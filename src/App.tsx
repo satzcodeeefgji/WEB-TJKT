@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ProfileChecker } from "@/components/ProfileChecker";
 import Index from "./pages/Index.tsx";
 import KasMurid from "./pages/KasMurid.tsx";
+import KasOverdue from "./pages/KasOverdue.tsx";
 import Auth from "./pages/Auth.tsx";
 import ProfileSetup from "./pages/ProfileSetup.tsx";
 import EditProfile from "./pages/EditProfile.tsx";
@@ -51,6 +52,16 @@ const AppRoutes = () => {
           <ProtectedRoute>
             <ProfileChecker>
               <Index />
+            </ProfileChecker>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/kas/unpaid"
+        element={
+          <ProtectedRoute>
+            <ProfileChecker>
+              <KasOverdue />
             </ProfileChecker>
           </ProtectedRoute>
         }
