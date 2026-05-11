@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +32,8 @@ export const PengeluaranTab = ({ role }: Props) => {
   const [desc, setDesc] = useState("");
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [amount, setAmount] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const reset = () => { setDesc(""); setDate(format(new Date(), "yyyy-MM-dd")); setAmount(""); };
 
@@ -94,26 +99,82 @@ export const PengeluaranTab = ({ role }: Props) => {
     const num = Number(amount);
     if (!num || num <= 0) return toast.error("Jumlah tidak valid");
 
-    const { error } = await supabase.from("expenses").insert({
-      description: desc.trim(),
-      expense_date: date,
-      amount: num,
-      edited_by: user?.email || null,
-    });
+    // Insert the expense first
+    const { data: expenseData, error: expenseError } = await supabase
+      .from("expenses")
+      .insert({
+        description: desc.trim(),
+        expense_date: date,
+        amount: num,
+      })
+      .select("id")
+      .single();
 
-    if (error) {
+    if (expenseError) {
       toast.error("Gagal menambahkan pengeluaran");
-      console.error("Add expense error:", error);
+      console.error("Add expense error:", expenseError);
       return;
     }
 
-    toast.success("Pengeluaran ditambahkan");
-    reset(); setOpen(false); load();
+    const expenseId = expenseData?.id;
+    if (!expenseId) return;
+
+    // Get all students
+    const { data: students, error: studentsError } = await supabase
+      .from("students")
+      .select("id");
+
+    if (studentsError) {
+      toast.error("Gagal memuat daftar murid");
+      console.error("Get students error:", studentsError);
+      await supabase.from("expenses").delete().eq("id", expenseId);
+      return;
+    }
+
+    if (!students || students.length === 0) {
+      toast.error("Tidak ada murid untuk membagi pengeluaran");
+      await supabase.from("expenses").delete().eq("id", expenseId);
+      return;
+    }
+
+    const studentCount = students.length;
+    const baseDeduction = Math.floor(num / studentCount);
+    const remainder = num - baseDeduction * studentCount;
+
+    const deductions = students.map((student, index) => ({
+      student_id: student.id,
+      expense_id: expenseId,
+      deduction_amount: baseDeduction + (index < remainder ? 1 : 0),
+    }));
+
+    const { error: deductionError } = await supabase
+      .from("saldo_deductions")
+      .insert(deductions);
+
+    if (deductionError) {
+      console.error("Saldo deduction failed", deductionError);
+      await supabase.from("saldo_deductions").delete().eq("expense_id", expenseId);
+      await supabase.from("expenses").delete().eq("id", expenseId);
+      const missingTable = deductionError.message?.includes("public.saldo_deductions") || deductionError.message?.includes("table \"saldo_deductions\"");
+      if (missingTable) {
+        toast.error(
+          "Potongan saldo gagal: tabel saldo_deductions tidak tersedia. Jalankan migrasi Supabase atau periksa koneksi database."
+        );
+      } else {
+        toast.error(`Potongan saldo gagal: ${deductionError.message}`);
+      }
+      return;
+    }
+
+    toast.success("Pengeluaran ditambahkan dan saldo semua murid telah dipotong");
+
+    reset(); 
+    setOpen(false); 
+    load();
   };
 
   const removeExpense = async (id: string) => {
-    if (!confirm("Hapus pengeluaran ini?")) return;
-
+    // Delete the expense (which should cascade to saldo_deductions if foreign key is set)
     const { error } = await supabase.from("expenses").delete().eq("id", id);
 
     if (error) {
@@ -122,7 +183,12 @@ export const PengeluaranTab = ({ role }: Props) => {
       return;
     }
 
-    toast.success("Pengeluaran dihapus");
+    // Also explicitly delete saldo_deductions (fallback)
+    await supabase.from("saldo_deductions").delete().eq("expense_id", id);
+
+    toast.success("Pengeluaran dihapus dan saldo semua murid telah dikembalikan");
+    setDeleteDialogOpen(false);
+    setPendingDeleteId(null);
     load();
   };
 
@@ -207,7 +273,7 @@ export const PengeluaranTab = ({ role }: Props) => {
                     </td>
                     <td className="px-4 py-3 text-center">
                       {isAdmin && (
-                        <Button size="icon" variant="ghost" onClick={() => removeExpense(it.id)} className="size-7 text-muted-foreground hover:text-destructive" aria-label="Hapus">
+                        <Button size="icon" variant="ghost" onClick={() => { setPendingDeleteId(it.id); setDeleteDialogOpen(true); }} className="size-7 text-muted-foreground hover:text-destructive" aria-label="Hapus">
                           <Trash2 className="size-4" />
                         </Button>
                       )}
@@ -219,6 +285,23 @@ export const PengeluaranTab = ({ role }: Props) => {
           </div>
         </div>
       )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Pengeluaran?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Pengeluaran ini akan dihapus dan potongan saldo semua murid akan dikembalikan. Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={() => pendingDeleteId && removeExpense(pendingDeleteId)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 };

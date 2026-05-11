@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -50,6 +53,8 @@ export const DokumentasiTab = ({ role }: Props) => {
   const [preview, setPreview] = useState("");
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [pendingDeleteDoc, setPendingDeleteDoc] = useState<Doc | null>(null);
 
   const load = useCallback(async (showLoading = true) => {
     const loadId = ++loadIdRef.current;
@@ -171,8 +176,6 @@ export const DokumentasiTab = ({ role }: Props) => {
   };
 
   const removeDoc = async (doc: Doc) => {
-    if (!confirm("Hapus dokumentasi ini?")) return;
-
     const { error: deleteError } = await supabase
       .from("documentation")
       .delete()
@@ -193,6 +196,8 @@ export const DokumentasiTab = ({ role }: Props) => {
     }
 
     toast.success("Dokumentasi dihapus");
+    setDeleteDialogOpen(false);
+    setPendingDeleteDoc(null);
     load();
   };
 
@@ -254,7 +259,7 @@ export const DokumentasiTab = ({ role }: Props) => {
               <div className="relative aspect-video bg-muted overflow-hidden">
                 <img src={publicUrl(doc.image_path)} alt={doc.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 {isAdmin && (
-                  <Button size="icon" variant="secondary" onClick={() => removeDoc(doc)} className="absolute top-2 right-2 size-8 shadow-sm" aria-label="Hapus">
+                  <Button size="icon" variant="secondary" onClick={() => { setPendingDeleteDoc(doc); setDeleteDialogOpen(true); }} className="absolute top-2 right-2 size-8 shadow-sm" aria-label="Hapus">
                     <Trash2 className="size-4" />
                   </Button>
                 )}
@@ -270,6 +275,23 @@ export const DokumentasiTab = ({ role }: Props) => {
           ))}
         </div>
       )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Dokumentasi?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Dokumentasi "{pendingDeleteDoc?.title}" akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={() => pendingDeleteDoc && removeDoc(pendingDeleteDoc)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 };
