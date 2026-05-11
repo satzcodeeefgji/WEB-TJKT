@@ -31,8 +31,21 @@ export const LiburTab = ({ role }: Props) => {
     if (showLoading || !hasLoadedRef.current) setLoading(true);
 
     try {
+      const loadLiburDates = async () => {
+        const result = await supabase
+          .from("libur_records")
+          .select("libur_date")
+          .eq("is_active", true)
+          .order("libur_date", { ascending: true });
+
+        if (result.error && (result.error.message?.includes("is_active") || result.error.code === "42703")) {
+          return supabase.from("libur_records").select("libur_date").order("libur_date", { ascending: true });
+        }
+        return result;
+      };
+
       const { data, error } = await withTimeout(
-        supabase.from("libur_records").select("libur_date").eq("is_active", true).order("libur_date", { ascending: true }),
+        loadLiburDates(),
         "Memuat jadwal libur terlalu lama. Coba refresh halaman."
       );
 
@@ -61,15 +74,20 @@ export const LiburTab = ({ role }: Props) => {
   const addGlobalLibur = async () => {
     if (!selectedDate) return toast.error("Pilih tanggal libur terlebih dahulu");
 
-    const { data: existing, error: existingError } = await supabase
+    let existingResult = await supabase
       .from("libur_records")
       .select("student_id")
       .eq("libur_date", selectedDate)
       .eq("is_active", true);
 
-    if (existingError) {
-      console.error("Libur existing check error:", existingError);
-      const missingTable = existingError.message?.includes("public.libur_records") || existingError.message?.includes("table \"libur_records\"");
+    if (existingResult.error && (existingResult.error.message?.includes("is_active") || existingResult.error.code === "42703")) {
+      existingResult = await supabase.from("libur_records").select("student_id").eq("libur_date", selectedDate);
+    }
+
+    if (existingResult.error) {
+      console.error("Libur existing check error:", existingResult.error);
+      const missingTable = existingResult.error.message?.includes("public.libur_records") || existingResult.error.message?.includes("table \"libur_records\""
+      );
       if (missingTable) {
         toast.error(
           "Gagal memeriksa jadwal libur: tabel libur_records tidak tersedia. Jalankan migrasi Supabase atau periksa koneksi database."
@@ -95,7 +113,7 @@ export const LiburTab = ({ role }: Props) => {
       return;
     }
 
-    const existingIds = new Set((existing ?? []).map((row) => row.student_id));
+    const existingIds = new Set(((existingResult.data ?? []) as Array<{ student_id: string }>).map((row) => row.student_id));
     const records = students
       .filter((student) => !existingIds.has(student.id))
       .map((student) => ({ student_id: student.id, libur_date: selectedDate }));
@@ -125,12 +143,20 @@ export const LiburTab = ({ role }: Props) => {
     console.log("User role:", role);
     console.log("Is admin:", isAdmin);
 
-    const { error } = await supabase
+    let result = await supabase
       .from("libur_records")
       .update({ is_active: false })
       .eq("libur_date", dateToDelete)
       .eq("is_active", true);
 
+    if (result.error && (result.error.message?.includes("is_active") || result.error.code === "42703")) {
+      result = await supabase
+        .from("libur_records")
+        .delete()
+        .eq("libur_date", dateToDelete);
+    }
+
+    const { error } = result;
     console.log("Deactivate libur result:", { error, success: !error });
 
     if (error) {
@@ -149,11 +175,16 @@ export const LiburTab = ({ role }: Props) => {
     console.log("User role:", role);
     console.log("Is admin:", isAdmin);
 
-    const { error } = await supabase
+    let result = await supabase
       .from("libur_records")
       .update({ is_active: false })
       .eq("is_active", true);
 
+    if (result.error && (result.error.message?.includes("is_active") || result.error.code === "42703")) {
+      result = await supabase.from("libur_records").delete().gt("created_at", "1900-01-01");
+    }
+
+    const { error } = result;
     console.log("Clear libur result:", { error, success: !error });
 
     if (error) {

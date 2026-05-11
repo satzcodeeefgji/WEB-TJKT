@@ -45,12 +45,24 @@ const KasMurid = () => {
     if (!id) return;
     setLoading(true);
 
+    const loadLiburDates = async () => {
+      const result = await supabase
+        .from("libur_records")
+        .select("start_date,end_date")
+        .eq("is_active", true);
+
+      if (result.error && (result.error.message?.includes("is_active") || result.error.code === "42703")) {
+        return supabase.from("libur_records").select("start_date,end_date");
+      }
+      return result;
+    };
+
     try {
-      const [studentResult, paymentsResult] = await withTimeout(
+      const [studentResult, paymentsResult, liburResult] = await withTimeout(
         Promise.all([
           supabase.from("students").select("*").eq("id", id).single(),
           supabase.from("kas_payments").select("paid_date,kind").eq("student_id", id),
-          supabase.from("libur_records").select("start_date,end_date").eq("is_active", true),
+          loadLiburDates(),
         ]),
         "Memuat detail kas terlalu lama. Coba refresh halaman."
       );
@@ -101,11 +113,9 @@ const KasMurid = () => {
         return;
       }
 
-      // Process libur data
-      const liburResult = paymentsResult.data[2] as any[];
-      if (liburResult) {
+      if (!liburResult.error) {
         const liburSet = new Set<string>();
-        liburResult.forEach((libur) => {
+        (liburResult.data ?? []).forEach((libur) => {
           const startDate = parseISO(libur.start_date);
           const endDate = parseISO(libur.end_date);
           const dates = eachDayOfInterval({ start: startDate, end: endDate });
@@ -114,12 +124,14 @@ const KasMurid = () => {
           });
         });
         setLiburDates(liburSet);
+      } else {
+        console.error("Load libur error:", liburResult.error);
       }
 
       setSupportsKind(true);
       setStudent(studentResult.data);
       setPaid(
-        (paymentsResult.data[0] ?? []).reduce<PaidMap>((acc, payment) => {
+        (paymentsResult.data ?? []).reduce<PaidMap>((acc, payment) => {
           const key = payment.paid_date;
           const kind = (payment as any).kind || "kas";
           acc[key] = acc[key] ?? new Set();

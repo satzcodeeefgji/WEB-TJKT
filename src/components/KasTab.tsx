@@ -95,12 +95,24 @@ export const KasTab = ({ role }: Props) => {
     }
 
     try {
+      const loadLiburRecords = async () => {
+        const result = await supabase
+          .from("libur_records")
+          .select("student_id,libur_date")
+          .eq("is_active", true);
+
+        if (result.error && (result.error.message?.includes("is_active") || result.error.code === "42703")) {
+          return supabase.from("libur_records").select("student_id,libur_date");
+        }
+        return result;
+      };
+
       const [studentsResult, paymentsResult, expensesResult, liburResult, saldoResult] = await withTimeout(
         Promise.all([
           supabase.from("students").select("*").order("absen", { ascending: true }),
           supabase.from("kas_payments").select("student_id,paid_date"),
           supabase.from("expenses").select("amount"),
-          supabase.from("libur_records").select("student_id,libur_date").eq("is_active", true),
+          loadLiburRecords(),
           supabase.from("saldo_deductions").select("student_id,deduction_amount"),
         ]),
         "Memuat data kas terlalu lama. Coba refresh halaman."
