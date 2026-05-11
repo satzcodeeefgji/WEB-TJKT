@@ -140,10 +140,17 @@ export const LiburTab = ({ role }: Props) => {
   };
 
   const clearLibur = async () => {
+    console.log("Attempting to clear all libur records");
+    console.log("User role:", role);
+    console.log("Is admin:", isAdmin);
+
     const { error } = await supabase.from("libur_records").delete();
+
+    console.log("Clear libur result:", { error, success: !error });
+
     if (error) {
       console.error("Clear libur failed", error);
-      toast.error("Gagal menghapus jadwal libur");
+      toast.error(`Gagal menghapus jadwal libur: ${error.message}`);
       return;
     }
     toast.success("Semua jadwal libur dihapus. Kas kembali berjalan.");
